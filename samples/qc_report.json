@@ -1,0 +1,52 @@
+{
+  "documents": 300,
+  "pii_fields": 2474,
+  "by_doc_type": {
+    "form": 100,
+    "invoice": 100,
+    "idcard": 100
+  },
+  "by_locale": {
+    "fr_FR": 54,
+    "en_GB": 46,
+    "it_IT": 51,
+    "de_DE": 53,
+    "nl_NL": 42,
+    "en_US": 54
+  },
+  "by_split": {
+    "train": 233,
+    "test": 31,
+    "validation": 36
+  },
+  "by_label": {
+    "GIVENNAME": 300,
+    "SURNAME": 300,
+    "DATEOFBIRTH": 200,
+    "TELEPHONENUM": 200,
+    "IDCARDNUM": 189,
+    "EMAIL": 200,
+    "ZIPCODE": 300,
+    "CITY": 300,
+    "STREET": 300,
+    "IBAN": 145,
+    "SOCIALNUM": 11,
+    "CREDITCARDNUMBER": 29
+  },
+  "rotated_docs": 203,
+  "render_check": "2474/2474",
+  "min_ink_ratio": 0.086,
+  "checks": [
+    "files exist, sizes match",
+    "boxes in bounds, non-degenerate",
+    "no overlapping PII boxes (rotation undone)",
+    "format validators per label",
+    "visible ink inside every box",
+    "no duplicate images (sha256)",
+    "no duplicate identities",
+    "unique fields never repeat",
+    "no value crosses splits"
+  ],
+  "failures": {},
+  "failure_examples": {}
+}

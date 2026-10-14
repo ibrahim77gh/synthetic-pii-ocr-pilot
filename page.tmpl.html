@@ -1,0 +1,441 @@
+<title>Synthetic PII OCR Pilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: one reading column (max 1120px). The live annotation viewer opens the page (scanned page left, its labelled fields right); reference sections follow in pipeline order. */
+:root {
+  --paper: #f1f3f0;
+  --sheet: #fbfcfa;
+  --ink: #16202a;
+  --ink-2: #45505c;
+  --muted: #6c7682;
+  --rule: #d6dbd5;
+  --accent: #1b58b4;
+  --accent-wash: #e2eaf5;
+  --pass: #0a6a2c;
+  --code: #e8ebe6;
+  --g-name: #2a78d6;
+  --g-contact: #eb6834;
+  --g-address: #1baf7a;
+  --g-date: #eda100;
+  --g-id: #e87ba4;
+  --g-fin: #008300;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #10151b;
+    --sheet: #171e26;
+    --ink: #e6eaee;
+    --ink-2: #b4bdc7;
+    --muted: #8a94a0;
+    --rule: #29333e;
+    --accent: #79a7ef;
+    --accent-wash: #1b293b;
+    --pass: #4cc26a;
+    --code: #0c1116;
+    --g-name: #3987e5;
+    --g-contact: #d95926;
+    --g-address: #199e70;
+    --g-date: #c98500;
+    --g-id: #d55181;
+    --g-fin: #008300;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #10151b;
+  --sheet: #171e26;
+  --ink: #e6eaee;
+  --ink-2: #b4bdc7;
+  --muted: #8a94a0;
+  --rule: #29333e;
+  --accent: #79a7ef;
+  --accent-wash: #1b293b;
+  --pass: #4cc26a;
+  --code: #0c1116;
+  --g-name: #3987e5;
+  --g-contact: #d95926;
+  --g-address: #199e70;
+  --g-date: #c98500;
+  --g-id: #d55181;
+  --g-fin: #008300;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 16px/1.6 var(--body);
+  padding-inline: clamp(16px, 4vw, 40px);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 48px 72px; display: grid; gap: 72px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; color: var(--ink); }
+h1 { font-size: clamp(2.5rem, 6vw, 4rem); font-stretch: 78%; font-weight: 750; line-height: 1; letter-spacing: -0.01em; }
+h2 { font-size: clamp(1.6rem, 3vw, 2rem); font-stretch: 82%; font-weight: 700; line-height: 1.1; }
+h3 { font-size: 1.1rem; font-stretch: 90%; font-weight: 650; line-height: 1.25; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.eyebrow { max-width: none; font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.section { display: grid; gap: 20px; }
+.section > header { display: grid; gap: 10px; }
+.note { color: var(--ink-2); }
+
+/* masthead */
+.masthead { display: grid; gap: 18px; }
+.lede { font-size: 1.15rem; line-height: 1.55; color: var(--ink-2); max-width: 64ch; }
+.facts { display: flex; flex-wrap: wrap; gap: 0; margin: 6px 0 0; border-block: 1px solid var(--rule); }
+.facts div { padding: 12px 22px 12px 0; margin-right: 22px; border-right: 1px solid var(--rule); display: grid; gap: 2px; }
+.facts div:last-child { border-right: 0; margin-right: 0; }
+.facts dt { font-size: 0.8rem; color: var(--muted); order: 2; }
+.facts dd { margin: 0; font-family: var(--display); font-stretch: 85%; font-weight: 700; font-size: 1.45rem; line-height: 1.1; order: 1; }
+.byline { font-size: 0.9rem; color: var(--muted); }
+
+/* viewer */
+.viewer { background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; padding: clamp(14px, 2.4vw, 24px); display: grid; gap: 18px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabs button {
+  font: 500 0.8rem/1 var(--mono); letter-spacing: 0.02em; color: var(--ink-2);
+  background: transparent; border: 1px solid var(--rule); border-radius: 999px; padding: 9px 14px; cursor: pointer;
+}
+.tabs button:hover { border-color: var(--accent); color: var(--ink); }
+.tabs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--sheet); }
+.stage { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: clamp(18px, 3vw, 32px); align-items: start; }
+.page-fig { margin: 0; position: relative; background: #c9ccc8; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.12), 0 8px 24px -12px rgba(0,0,0,0.25); }
+.page-fig img { display: block; width: 100%; height: auto; max-width: 100%; }
+.page-fig svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.page-fig polygon { fill-opacity: 0.1; stroke-width: 2.4; vector-effect: non-scaling-stroke; transition: fill-opacity 0.12s, stroke-width 0.12s, opacity 0.12s; cursor: pointer; }
+.page-fig svg.focusing polygon { opacity: 0.25; }
+.page-fig svg.focusing polygon.on { opacity: 1; fill-opacity: 0.28; stroke-width: 3.5; }
+.panel { display: grid; gap: 14px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.meta li { font: 0.76rem/1 var(--mono); color: var(--ink-2); background: var(--code); border-radius: 4px; padding: 6px 8px; }
+.fields { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--rule); }
+.fields li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; align-items: baseline; padding: 9px 8px; border-bottom: 1px solid var(--rule); cursor: pointer; border-radius: 4px; }
+.fields li:hover, .fields li.on { background: var(--accent-wash); }
+.sw { width: 10px; height: 10px; border-radius: 2px; align-self: center; grid-row: span 2; }
+.fl { font: 500 0.72rem/1.2 var(--mono); letter-spacing: 0.05em; color: var(--ink-2); }
+.fk { font-size: 0.76rem; color: var(--muted); text-align: right; }
+.fv { grid-column: 2 / 4; font-size: 0.98rem; color: var(--ink); overflow-wrap: anywhere; }
+.fb { grid-column: 2 / 4; font: 0.72rem/1.3 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; font-size: 0.9rem; color: var(--ink-2); }
+.controls label { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+.controls input { accent-color: var(--accent); width: 16px; height: 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.85rem; color: var(--ink-2); margin: 0; padding: 0; list-style: none; }
+.legend li { display: inline-flex; align-items: center; gap: 7px; }
+.legend .sw { grid-row: auto; }
+details > summary { cursor: pointer; color: var(--accent); font-size: 0.9rem; width: fit-content; }
+pre { margin: 10px 0 0; background: var(--code); color: var(--ink); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font: 0.78rem/1.55 var(--mono); max-height: 420px; }
+pre.tall { max-height: 640px; }
+
+/* tables */
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; vertical-align: top; padding: 11px 14px; border-bottom: 1px solid var(--rule); }
+tr:last-child td { border-bottom: 0; }
+th { font: 500 0.72rem/1.2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--sheet); }
+td.how { color: var(--ink-2); min-width: 280px; }
+td.res { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ok { color: var(--pass); font-weight: 600; }
+.ok::before { content: "\2713\00a0"; }
+.lbl { font: 500 0.8rem/1.2 var(--mono); }
+.grp { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-2); white-space: nowrap; }
+.barcell { min-width: 220px; }
+.bar { display: flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; }
+.bar span { display: block; height: 12px; background: var(--g-name); border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar b { font-weight: 500; font-size: 0.85rem; color: var(--ink-2); }
+.none { color: var(--muted); font-style: italic; }
+
+/* steps */
+.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--rule); }
+.steps > li { counter-increment: s; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 4px 14px; padding: 18px 0; border-bottom: 1px solid var(--rule); }
+.steps > li::before { content: counter(s); grid-row: span 2; font: 700 1.5rem/1 var(--display); font-stretch: 80%; color: var(--accent); }
+.steps p { color: var(--ink-2); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); gap: 18px 40px; }
+.cols > div { display: grid; gap: 8px; align-content: start; }
+ul.plain { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; color: var(--ink-2); max-width: 70ch; }
+ul.plain li::marker { color: var(--muted); }
+.run pre { max-height: none; }
+footer { border-top: 1px solid var(--rule); padding-top: 18px; font-size: 0.85rem; color: var(--muted); }
+
+@media (max-width: 860px) {
+  .stage { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-fig polygon { transition: none; }
+}
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">Work sample · Syed I. · October 2026</p>
+    <h1>Synthetic PII OCR Pilot</h1>
+    <p class="lede">A small working pipeline for a synthetic document OCR dataset: forms, invoices and ID-style cards, with a bounding box on every personal-data field. All 300 documents were generated and checked by the two scripts in the <a href="{{REPO_URL}}">source repository</a>. Every number here comes from that run.</p>
+    <dl class="facts">
+      <div><dt>documents</dt><dd>{{DOCS}}</dd></div>
+      <div><dt>labelled PII fields</dt><dd>{{FIELDS}}</dd></div>
+      <div><dt>PII labels</dt><dd>{{NLABELS}}</dd></div>
+      <div><dt>locales</dt><dd>{{NLOCALES}}</dd></div>
+      <div><dt>QC checks, 0 failures</dt><dd>9</dd></div>
+      <div><dt>reruns</dt><dd>byte-identical</dd></div>
+    </dl>
+    <p class="byline">Source: <a href="{{REPO_URL}}">{{REPO_SHORT}}</a> · All names, numbers and addresses shown are synthetic.</p>
+  </header>
+
+  <section class="section" aria-labelledby="h-samples">
+    <header>
+      <h2 id="h-samples">Sample documents</h2>
+      <p class="note">Six of the 300 pages, shown exactly as written to disk with their stored labels drawn on top. Point at a field in the list or on the page to match them up.</p>
+    </header>
+    <div class="viewer">
+      <div class="tabs" id="tabs" role="group" aria-label="Choose a sample document"></div>
+      <div class="stage">
+        <figure class="page-fig">
+          <img id="page-img" alt="">
+          <svg id="page-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" aria-hidden="true"></svg>
+        </figure>
+        <div class="panel">
+          <ul class="meta" id="meta"></ul>
+          <div class="controls">
+            <label for="show-boxes"><input type="checkbox" id="show-boxes" checked> Show boxes</label>
+          </div>
+          <ul class="fields" id="fields"></ul>
+          <details id="json-details">
+            <summary>Stored JSONL record for this page</summary>
+            <pre id="json-record"></pre>
+          </details>
+        </div>
+      </div>
+      <ul class="legend" aria-label="Box colours">
+        <li><span class="sw" style="background:var(--g-name)"></span>Name</li>
+        <li><span class="sw" style="background:var(--g-contact)"></span>Contact</li>
+        <li><span class="sw" style="background:var(--g-address)"></span>Address</li>
+        <li><span class="sw" style="background:var(--g-date)"></span>Date of birth</li>
+        <li><span class="sw" style="background:var(--g-id)"></span>Government ID</li>
+        <li><span class="sw" style="background:var(--g-fin)"></span>Financial</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="h-gen">
+    <header>
+      <h2 id="h-gen">How the documents are generated</h2>
+    </header>
+    <div class="cols">
+      <div>
+        <h3>Values</h3>
+        <p class="note">Each page gets one fresh synthetic person from Faker in one of six locales (en_US, en_GB, de_DE, fr_FR, it_IT, nl_NL). Local formats are kept: dates follow the locale with some ISO dates mixed in, postcode and city swap order on EU addresses, and US pages carry SSNs and cards where EU pages carry IBANs. Emails are built from the person's own name, as they usually are in real documents.</p>
+      </div>
+      <div>
+        <h3>Layouts</h3>
+        <p class="note">Three templates: form, invoice and ID-style card. Each varies font (7 families), field order, key wording ("Surname" or "Family name"), boxed or underlined inputs, and colour. Every page also contains text that is not personal data and stays unlabelled on purpose: company names and addresses, invoice and due dates, expiry dates, form references and amounts.</p>
+      </div>
+      <div>
+        <h3>Scan effects</h3>
+        <p class="note">{{ROTATED}} of the {{DOCS}} pages are rotated by up to 1.5°. Pages also get mild blur, contrast and brightness shifts, grain and JPEG compression. Boxes are transformed with the page. Each field stores its rotated four-corner <code>quad</code> and the axis-aligned <code>bbox</code> around it.</p>
+      </div>
+      <div>
+        <h3>Key–value links</h3>
+        <p class="note">Each field also stores the printed label it belongs to (<code>key_text</code>, <code>key_bbox</code>), so the same data can train key–value extraction as well as PII detection.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="h-format">
+    <header>
+      <h2 id="h-format">Output format</h2>
+      <p class="note">One JPEG per page, one JSONL record per page, and a flat Parquet file with one row per field for quick analysis in pandas or polars.</p>
+    </header>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>File</th><th>Contents</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">images/*.jpg</td><td class="how">The rendered pages, {{SIZE_MB}} MB in total.</td></tr>
+          <tr><td class="mono">metadata.jsonl</td><td class="how">One record per page: <code>file_name</code>, <code>doc_type</code>, <code>template</code>, <code>locale</code>, size, <code>split</code>, <code>person_id</code>, render settings, provenance and an <code>entities</code> list.</td></tr>
+          <tr><td class="mono">entities.parquet</td><td class="how">One row per field: <code>doc_id, doc_type, locale, split, label, text, presidio, x0, y0, x1, y1, key_text</code>.</td></tr>
+          <tr><td class="mono">qc_report.json</td><td class="how">Written by <code>validate.py</code>: counts by type, locale, split and label, plus every failed check with examples.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <details>
+      <summary>One stored entity, from the first sample</summary>
+      <pre>{{EXAMPLE_ENTITY}}</pre>
+    </details>
+  </section>
+
+  <section class="section" aria-labelledby="h-qc">
+    <header>
+      <h2 id="h-qc">Quality checks</h2>
+      <p class="note">The first check runs during generation. The other eight are in <code>validate.py</code>, which reads only what is on disk, writes <code>qc_report.json</code> and exits non-zero on any failure, so it can block a release.</p>
+    </header>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Check</th><th>How</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Text sits inside its box</td><td class="how">Every value is also drawn onto a hidden mask, with its own pixel value, and the mask is rotated with the page. Each field's real ink extent from the mask must sit inside its stored box, within 2&nbsp;px. This catches geometry bugs that a box-in-bounds check would miss.</td><td class="res ok">{{RENDER}}</td></tr>
+          <tr><td>Boxes valid</td><td class="how">Inside the image, at least 3&nbsp;px wide and tall, and the image size matches the record.</td><td class="res ok">0 failures</td></tr>
+          <tr><td>No overlapping fields</td><td class="how">Page rotation is read back from the quads and undone first, so tilted neighbouring lines aren't flagged by mistake.</td><td class="res ok">0 failures</td></tr>
+          <tr><td>Values match their label</td><td class="how">IBAN mod-97 checksum, card Luhn check, each date parses back to its stored ISO value, SSN and ID patterns, phone digit count, no digits in names.</td><td class="res ok">0 failures</td></tr>
+          <tr><td>Text still visible</td><td class="how">After blur, grain and JPEG, the darkest pixels inside each box must cover at least 2% of it. Lowest seen: {{MIN_INK}}.</td><td class="res ok">0 failures</td></tr>
+          <tr><td>No duplicate pages</td><td class="how">SHA-256 of every image file.</td><td class="res ok">0 failures</td></tr>
+          <tr><td>No duplicate people</td><td class="how">One <code>person_id</code> (hash of name and date of birth) per page.</td><td class="res ok">0 failures</td></tr>
+          <tr><td>Unique values stay unique</td><td class="how">Email, phone, ID number, SSN, IBAN and card number never repeat. Names and cities may repeat, as they do in real data.</td><td class="res ok">0 failures</td></tr>
+          <tr><td>No leakage across splits</td><td class="how">The split comes from a hash of the identity ({{SPLITS}}), so one person never appears in both train and test. The check confirms no unique value shows up in two splits.</td><td class="res ok">0 failures</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note"><strong>Reproducibility.</strong> Two runs with the same seed produce byte-identical files ({{NFILES}} of {{NFILES}}). Two fixes were needed to get there. Pillow's <code>effect_noise</code> uses its own random generator, which the seed doesn't control, so the grain is now drawn from the seeded one. Faker builds its Italian city list from a Python <code>set</code>, so the order changed with each process's hash seed and the same seed gave different cities. The generator now sorts that list.</p>
+  </section>
+
+  <section class="section" aria-labelledby="h-labels">
+    <header>
+      <h2 id="h-labels">Labels and a mapping to Presidio</h2>
+      <p class="note">Field counts from this run, with each label's nearest Microsoft Presidio entity. Several labels merge into one Presidio entity (both name labels become <code>PERSON</code>, three address labels become <code>LOCATION</code>), so mapping back is lossy and the mapping keeps track of that. Labels with no Presidio equivalent are listed as unmapped, never quietly dropped.</p>
+    </header>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Label</th><th>Group</th><th>Fields in this run</th><th>Presidio</th></tr></thead>
+        <tbody>{{LABEL_ROWS}}</tbody>
+      </table>
+    </div>
+    <p class="note">SSN and card numbers appear only on US pages, and IBANs only on UK and EU pages, so their counts follow the locale mix.</p>
+  </section>
+
+  <section class="section" aria-labelledby="h-speech">
+    <header>
+      <h2 id="h-speech">Speech pilot: putting PII spans on the audio timeline</h2>
+      <p class="note">This part is a design, not yet built: how labelled text spans get aligned to timestamps in generated audio.</p>
+    </header>
+    <ol class="steps">
+      <li><h3>Turn the text into what will be spoken, keeping an offset map</h3><p>Written PII isn't spoken as written. <code>j.doe@mail.com</code> becomes "j dot doe at mail dot com", and an IBAN is read in digit groups. I would convert each span to its spoken form and keep a character map from written to spoken offsets, so every label still points at the right words after conversion.</p></li>
+      <li><h3>Generate the audio</h3><p>Open-weight TTS on the GPU machine, with several voices and speaking rates per sentence. Each model and voice gets a licence check first. For example, Kokoro-82M is Apache-2.0, but XTTS-v2 is under the Coqui Public Model License, which is non-commercial, so it can't feed the commercial datasets.</p></li>
+      <li><h3>Force-align words to the audio</h3><p>Montreal Forced Aligner, or a CTC aligner such as the one in WhisperX, gives start and end times for every spoken word. If the TTS engine reports its own word timings, I would use them and keep the aligner as a cross-check.</p></li>
+      <li><h3>Project each span onto time</h3><p>Spoken span, then the words it covers, then [first word start, last word end] with about 30&nbsp;ms of padding. Each record keeps the written offsets, the spoken offsets and the seconds.</p></li>
+      <li><h3>Check every clip</h3><p>Re-transcribe each clip with Whisper and flag clips where the character error rate inside a PII span is over a set limit. Mispronounced IBANs and emails are the usual failure. Also check that timestamps increase and stay inside the clip, flag clips that are unusually slow or fast per character, and listen to a random sample from each voice.</p></li>
+    </ol>
+  </section>
+
+  <section class="section" aria-labelledby="h-merge">
+    <header>
+      <h2 id="h-merge">Merging existing text datasets</h2>
+    </header>
+    <ul class="plain">
+      <li><strong>Deduplicate on masked text, not raw text.</strong> Two rows that differ only in the name dropped into them are the same sentence. Replacing each span with its label (<code>[GIVENNAME] paid [IBAN]</code>) before hashing catches those duplicates.</li>
+      <li>Exact hashing first, then MinHash-LSH on word shingles for near-duplicates. Set the similarity threshold on a hand-checked sample before applying it.</li>
+      <li>Check that every span is still correct after each normalisation step: <code>text[start:end] == value</code>, so no offset quietly shifts.</li>
+      <li>Carry source dataset, version, licence and original row id through every merge, so any row can be traced and removed if a source licence changes.</li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="h-lic">
+    <header>
+      <h2 id="h-lic">Licences and provenance in this pilot</h2>
+    </header>
+    <ul class="plain">
+      <li>Values come from Faker (MIT). Some of Faker's locale data comes from other sources. Its Italian place names, for example, are converted from GeoNames postal data (CC BY 4.0), which needs attribution in a public release.</li>
+      <li>The pilot renders with Windows system fonts. That is fine while the pilot is private. For a public release I would render with OFL-licensed fonts (Noto, Liberation) so every input has a clear licence.</li>
+      <li>Every record stores the generator version, seed, and Faker and Pillow versions.</li>
+    </ul>
+  </section>
+
+  <section class="section run" aria-labelledby="h-run">
+    <header>
+      <h2 id="h-run">Run it</h2>
+      <p class="note">{{RUNTIME}} for 300 pages on a laptop CPU. No GPU needed for this part. Code, pinned requirements and sample output are on <a href="{{REPO_URL}}">GitHub</a>.</p>
+    </header>
+<pre>pip install faker pillow pyarrow
+python generate.py --out data --per-template 100 --seed 1234
+python validate.py --data data      # writes qc_report.json, exits 1 on any failure</pre>
+    <details>
+      <summary>generate.py</summary>
+      <pre class="tall">{{GEN_SRC}}</pre>
+    </details>
+    <details>
+      <summary>validate.py</summary>
+      <pre class="tall">{{VAL_SRC}}</pre>
+    </details>
+  </section>
+
+  <footer>Built by Syed I., October 2026. Everything on this page is synthetic and was created only for this sample.</footer>
+</div>
+
+<script>
+const DATA = {{DATA}};
+const GROUP = { GIVENNAME: "name", SURNAME: "name", EMAIL: "contact", TELEPHONENUM: "contact",
+  STREET: "address", CITY: "address", ZIPCODE: "address", DATEOFBIRTH: "date",
+  IDCARDNUM: "id", SOCIALNUM: "id", IBAN: "fin", CREDITCARDNUMBER: "fin" };
+// Boxes are drawn on the scanned page, which is light in both themes, so they keep the light-mode steps.
+const BOX = { name: "#2a78d6", contact: "#eb6834", address: "#1baf7a", date: "#eda100", id: "#e87ba4", fin: "#008300" };
+const SVGNS = "http://www.w3.org/2000/svg";
+const tabs = document.getElementById("tabs");
+const img = document.getElementById("page-img");
+const svg = document.getElementById("page-svg");
+const list = document.getElementById("fields");
+const meta = document.getElementById("meta");
+const json = document.getElementById("json-record");
+
+function focusField(k) {
+  svg.classList.toggle("focusing", k !== null);
+  svg.querySelectorAll("polygon").forEach(p => p.classList.toggle("on", Number(p.dataset.k) === k));
+  list.querySelectorAll("li").forEach(li => li.classList.toggle("on", Number(li.dataset.k) === k));
+}
+
+function render(i) {
+  const s = DATA.samples[i];
+  tabs.querySelectorAll("button").forEach((b, j) => b.setAttribute("aria-pressed", String(j === i)));
+  img.src = s.img;
+  img.width = s.width;
+  img.height = s.height;
+  img.alt = `Synthetic ${s.doc_type} page, ${s.locale}, with ${s.entities.length} labelled personal-data fields`;
+  svg.setAttribute("viewBox", `0 0 ${s.width} ${s.height}`);
+  svg.replaceChildren();
+  list.replaceChildren();
+  s.entities.forEach((e, k) => {
+    const color = BOX[GROUP[e.label]];
+    const poly = document.createElementNS(SVGNS, "polygon");
+    poly.setAttribute("points", e.quad.map(p => p.join(",")).join(" "));
+    poly.setAttribute("fill", color);
+    poly.setAttribute("stroke", color);
+    poly.dataset.k = k;
+    poly.addEventListener("mouseenter", () => focusField(k));
+    poly.addEventListener("mouseleave", () => focusField(null));
+    svg.append(poly);
+    const li = document.createElement("li");
+    li.dataset.k = k;
+    li.tabIndex = 0;
+    li.innerHTML = `<span class="sw" style="background:var(--g-${GROUP[e.label]})"></span>` +
+      `<span class="fl"></span><span class="fk"></span><span class="fv"></span><span class="fb"></span>`;
+    li.querySelector(".fl").textContent = e.label;
+    li.querySelector(".fk").textContent = e.key_text ? `key: ${e.key_text}` : "";
+    li.querySelector(".fv").textContent = e.text;
+    li.querySelector(".fb").textContent = `bbox [${e.bbox.join(", ")}]`;
+    li.addEventListener("mouseenter", () => focusField(k));
+    li.addEventListener("mouseleave", () => focusField(null));
+    li.addEventListener("focus", () => focusField(k));
+    li.addEventListener("blur", () => focusField(null));
+    list.append(li);
+  });
+  const r = s.render;
+  const items = [s.template, s.locale, `${s.width}×${s.height} px`,
+    r.angle ? `rotated ${r.angle > 0 ? "+" : "−"}${Math.abs(r.angle).toFixed(2)}°` : "not rotated",
+    r.blur ? `blur ${r.blur} px` : "no blur", `JPEG q${r.jpeg_quality}`, `split: ${s.split}`];
+  meta.replaceChildren(...items.map(t => { const li = document.createElement("li"); li.textContent = t; return li; }));
+  json.textContent = s.record;
+}
+
+DATA.samples.forEach((s, i) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = `${s.doc_type} · ${s.locale}`;
+  b.addEventListener("click", () => render(i));
+  tabs.append(b);
+});
+document.getElementById("show-boxes").addEventListener("change", e => svg.toggleAttribute("hidden", !e.target.checked));
+render(0);
+</script>

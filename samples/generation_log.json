@@ -1,0 +1,11 @@
+{
+  "fields": 2474,
+  "render_ok": 2474,
+  "docs": 300,
+  "generator": "pii-ocr-pilot 0.1.0",
+  "seed": 1234,
+  "faker": "40.43.0",
+  "pillow": "12.3.0",
+  "values": "Faker (MIT), synthetic",
+  "fonts": "Windows system fonts - pilot only, swap to OFL fonts before public release"
+}
